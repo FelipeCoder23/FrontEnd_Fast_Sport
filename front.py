@@ -1,7 +1,13 @@
 import streamlit as st
 import requests
 import time
+import subprocess
+import os
+from io import BytesIO
+import base64
 
+
+output_directory = "/tmp"
 # CSS styles
 st.markdown("""
 <style>
@@ -73,9 +79,33 @@ if page == 'Introduction':
     """)
 
 elif page == 'Upload & Analysis':
-    st.title('Obtener tiempos de partidos')
-    url = "http://127.0.0.1:8000/predict_video"
+# Define the path to save the segments (preferably in a temporary directory)\
+    output_directory = "/tmp"
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+
+    # Function to cut the video based on the given times and return the paths of the segments
+    def cut_video(input_video, goal_times):
+        segment_paths = []
+        for idx, (start_time, end_time) in enumerate(goal_times):
+            # Output segment file
+            output_segment = os.path.join(output_directory, f"segment_{idx}.mp4")
+            # Cut the video
+            cmd = [
+                "ffmpeg",
+                "-i", input_video,
+                "-ss", start_time,
+                "-to", end_time,
+                "-c", "copy",
+                output_segment
+            ]
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            segment_paths.append(output_segment)
+        return segment_paths
+
+    url = "http://127.0.0.1:8000/"
     uploaded_file = st.file_uploader("Upload a .mp4 file:", type="mp4")
+
 
     if st.button('Obtener predicciones'):
         if uploaded_file is not None:
@@ -100,14 +130,47 @@ elif page == 'Upload & Analysis':
             progress_message.text('Finishing up...')
 
             if response.ok:
-                predictions = response.json()
-                progress_message.text('Analysis complete!')
-                st.write(predictions)
+            # CAMBIAR DONDE SE GUARDA EL VIDEO
+                output_directory = "/tmp"
+
+                # Make sure the output directory exists, create it if it doesn't
+                if not os.path.exists(output_directory):
+                    os.makedirs(output_directory)
+
+                # CAMBIAR EL VIDEO INPUT
+                files = {'file': uploaded_file.getvalue()}
+                response = requests.get(url, files=files)
+
+                if response.ok:
+                    time_ranges = []
+                    # The response is expected to be a JSON with a 'prediction' field that contains the times
+                    predictions = response.json()['prediction']
+                    for prediction in predictions:
+                        # Here I'm assuming that the 'prediction' is a dictionary with the times as strings
+                        # If your format is different, you'll need to adjust the parsing accordingly
+                        label, time_minute_str = prediction.split(":", 1)
+
+                        minute = int(time_minute_str.split(":", 1)[0])
+                        second = int(time_minute_str.split(":", 1)[1].split(" ", 1)[0])  # Assuming "min" is present
+
+                        # Calculate start and end times with a buffer (in seconds)
+                        start_time = max(0, (minute * 60) + second - 1)  # Ensure start time is non-negative
+                        end_time = (minute * 60) + second + 1
+
+                        # Add time range as a tuple (start, end) in seconds
+                        time_ranges.append((str(start_time), str(end_time)))
+                else:
+                    st.error("Error en la respuesta de la API: {}".format(response.status_code))
+
             else:
                 st.error("Error en la respuesta de la API.")
             # Reset the progress bar and message
             progress_bar.empty()
             progress_message.empty()
+
+
+
+
 
 elif page == 'About us':
 
