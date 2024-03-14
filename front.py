@@ -13,7 +13,7 @@ st.markdown("""
 <style>
     /* App background color */
     body {
-        background-color: #35374B;
+        background-color: #000000;
     }
 
     /* Sidebar styling */
@@ -26,7 +26,7 @@ st.markdown("""
     /* Button styling */
     .stButton>button {
         border: 2px solid #4CAF50;
-        border-radius: 20px;
+        border-radius: 10px;
         color: white;
         background-color: #4CAF50;
         padding: 10px 24px;
@@ -80,6 +80,11 @@ if page == 'Introduction':
 
 elif page == 'Upload & Analysis':
 # Define the path to save the segments (preferably in a temporary directory)\
+    st.title('Upload your match')
+    st.write("""
+        This app uses advanced computer vision to track handball matches and detect goal plays.
+        Simply upload a video of a match, and the app will analyze it to return clips where goals are detected.
+    """)
     output_directory = "/tmp"
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
@@ -103,55 +108,60 @@ elif page == 'Upload & Analysis':
             segment_paths.append(output_segment)
         return segment_paths
 
-    url = "http://127.0.0.1:8000/"
+    url = "http://127.0.0.1:8000/predict_video"
     uploaded_file = st.file_uploader("Upload a .mp4 file:", type="mp4")
 
 
-    if st.button('Obtener predicciones'):
+    if st.button('Fetch Goals'):
         if uploaded_file is not None:
-            # Add a placeholder for the progress bar and message
+
             progress_bar = st.progress(0)
             progress_message = st.empty()
 
-            # Dummy loop to simulate progress
+
             for i in range(100):
-                # Update the progress bar
+
                 progress_bar.progress(i + 1)
 
-                # Update progress message
+
                 progress_message.text(f'Processing... {i+1}%')
 
-                # Sleep to simulate processing time
+
                 time.sleep(0.05)
 
-            # Once the loop is done, make the API call
-            files = {'file': uploaded_file.read()}
-            with  requests.post(url+"predict_video", files=files) as response:
-                progress_message.text('Finishing up...')
-                if response.status_code == 200:
-                    #st.write(response.json())
 
-                    time_ranges = []
-                    # The response is expected to be a JSON with a 'prediction' field that contains the times
+        # Display the video if a file has been uploaded
+        if uploaded_file is not None:
+            # Display the video
+            st.video(uploaded_file)
 
-                    predictions = response.json()["prediction"]
-                    for prediction in predictions:
-                        # Here I'm assuming that the 'prediction' is a dictionary with the times as strings
-                        # If your format is different, you'll need to adjust the parsing accordingly
-                        label, time_minute_str = prediction.split(":", 1)
+            files = {'file': uploaded_file.getvalue()}
+            response = requests.post(url, files=files)
+            progress_message.text('Finishing up...')
 
-                        minute = int(time_minute_str.split(":", 1)[0])
-                        second = int(time_minute_str.split(":", 1)[1].split(" ", 1)[0])  # Assuming "min" is present
+            if response.ok:
+                st.success('API called succesfully!')
+            # CAMBIAR DONDE SE GUARDA EL VIDEO
+                output_directory = "/tmp"
 
-                        # Calculate start and end times with a buffer (in seconds)
-                        start_time = max(0, (minute * 60) + second - 1)  # Ensure start time is non-negative
-                        end_time = (minute * 60) + second + 1
 
-                        # Add time range as a tuple (start, end) in seconds
-                        time_ranges.append((str(start_time), str(end_time)))
+                if not os.path.exists(output_directory):
+                    os.makedirs(output_directory)
 
-                else:
-                    st.error("Error en la respuesta de la API: {}".format(response.status_code))
+                # CAMBIAR EL VIDEO INPUT
+                files = {'file': uploaded_file.getvalue()}
+                response = requests.post(url, files=files)
+
+
+            if response.ok:
+                if response.ok:
+                    predictions = response.json()
+                    st.write(predictions)
+            else:
+                st.error("Error en la respuesta de la API.")
+
+            progress_bar.empty()
+            progress_message.empty()
 
 
 
