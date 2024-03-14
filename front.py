@@ -129,6 +129,7 @@ elif page == 'Upload & Analysis':
 
                 time.sleep(0.05)
 
+
         # Display the video if a file has been uploaded
         if uploaded_file is not None:
             # Display the video
@@ -161,6 +162,7 @@ elif page == 'Upload & Analysis':
 
             progress_bar.empty()
             progress_message.empty()
+
 
 
 
