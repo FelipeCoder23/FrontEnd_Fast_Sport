@@ -125,26 +125,16 @@ elif page == 'Upload & Analysis':
                 time.sleep(0.05)
 
             # Once the loop is done, make the API call
-            files = {'file': uploaded_file.getvalue()}
-            response = requests.post(url, files=files)
-            progress_message.text('Finishing up...')
+            files = {'file': uploaded_file.read()}
+            with  requests.post(url+"predict_video", files=files) as response:
+                progress_message.text('Finishing up...')
+                if response.status_code == 200:
+                    #st.write(response.json())
 
-            if response.ok:
-            # CAMBIAR DONDE SE GUARDA EL VIDEO
-                output_directory = "/tmp"
-
-                # Make sure the output directory exists, create it if it doesn't
-                if not os.path.exists(output_directory):
-                    os.makedirs(output_directory)
-
-                # CAMBIAR EL VIDEO INPUT
-                files = {'file': uploaded_file.getvalue()}
-                response = requests.get(url, files=files)
-
-                if response.ok:
                     time_ranges = []
                     # The response is expected to be a JSON with a 'prediction' field that contains the times
-                    predictions = response.json()['prediction']
+
+                    predictions = response.json()["prediction"]
                     for prediction in predictions:
                         # Here I'm assuming that the 'prediction' is a dictionary with the times as strings
                         # If your format is different, you'll need to adjust the parsing accordingly
@@ -159,14 +149,10 @@ elif page == 'Upload & Analysis':
 
                         # Add time range as a tuple (start, end) in seconds
                         time_ranges.append((str(start_time), str(end_time)))
+
                 else:
                     st.error("Error en la respuesta de la API: {}".format(response.status_code))
 
-            else:
-                st.error("Error en la respuesta de la API.")
-            # Reset the progress bar and message
-            progress_bar.empty()
-            progress_message.empty()
 
 
 
